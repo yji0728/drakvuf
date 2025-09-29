@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}로그 보기{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="h2 mb-4">
+            <i class="bi bi-file-text"></i> 시스템 로그
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">로그 파일</h5>
+                <button id="refresh-logs-btn" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-arrow-clockwise"></i> 새로고침
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="log-content" class="log-container" style="height: 600px;">
+                    <div class="text-muted">로그를 불러오는 중...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function loadLogs() {
+        fetch('/api/logs/system')
+        .then(response => response.json())
+        .then(data => {
+            const logContent = document.getElementById('log-content');
+            logContent.innerHTML = '';
+            
+            if (data.logs && data.logs.length > 0) {
+                data.logs.forEach(log => {
+                    const logSection = document.createElement('div');
+                    logSection.innerHTML = `
+                        <h6 class="text-info">${log.file}</h6>
+                        <div class="mb-3">
+                            ${log.lines.map(line => `<div>${line}</div>`).join('')}
+                        </div>
+                    `;
+                    logContent.appendChild(logSection);
+                });
+            } else {
+                logContent.innerHTML = '<div class="text-muted">로그 파일이 없습니다.</div>';
+            }
+        })
+        .catch(error => {
+            document.getElementById('log-content').innerHTML = 
+                '<div class="text-danger">로그 로드 실패: ' + error.message + '</div>';
+        });
+    }
+    
+    document.getElementById('refresh-logs-btn').addEventListener('click', loadLogs);
+    document.addEventListener('DOMContentLoaded', loadLogs);
+</script>
+{% endblock %}

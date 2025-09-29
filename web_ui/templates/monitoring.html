@@ -1,0 +1,622 @@
+{% extends "base.html" %}
+
+{% block title %}DRAKVUF 실시간 모니터링{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="h2 mb-4">
+            <i class="bi bi-activity"></i> 실시간 모니터링
+        </h1>
+    </div>
+</div>
+
+<!-- DRAKVUF 상태 및 제어 -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-shield-check"></i> DRAKVUF 상태
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="status-indicator" id="drakvuf-status-indicator"></div>
+                    <div>
+                        <strong>상태:</strong> <span id="drakvuf-status">확인 중...</span><br>
+                        <small class="text-muted">PID: <span id="drakvuf-pid">-</span></small>
+                    </div>
+                </div>
+                <div class="d-grid">
+                    <button id="toggle-drakvuf-btn" class="btn btn-primary" disabled>
+                        <i class="bi bi-play-fill"></i> 시작
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-graph-up"></i> 통계
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 id="events-count" class="text-primary">0</h4>
+                        <small class="text-muted">총 이벤트</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 id="events-per-sec" class="text-success">0</h4>
+                        <small class="text-muted">초당 이벤트</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 실시간 출력 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-terminal-fill"></i> DRAKVUF 실시간 출력
+                </h5>
+                <div>
+                    <button id="pause-output-btn" class="btn btn-outline-warning btn-sm">
+                        <i class="bi bi-pause-fill"></i> 일시정지
+                    </button>
+                    <button id="clear-output-btn" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-trash"></i> 지우기
+                    </button>
+                    <button id="save-output-btn" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-download"></i> 저장
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div id="drakvuf-output" class="log-container" style="height: 400px;">
+                    <div class="text-muted">DRAKVUF 출력이 여기에 표시됩니다...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 이벤트 필터 및 분석 -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-funnel"></i> 이벤트 필터
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">이벤트 타입</label>
+                            <select id="event-type-filter" class="form-select">
+                                <option value="">모든 이벤트</option>
+                                <option value="syscall">시스템 콜</option>
+                                <option value="process">프로세스</option>
+                                <option value="file">파일</option>
+                                <option value="network">네트워크</option>
+                                <option value="registry">레지스트리</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">프로세스 이름</label>
+                            <input type="text" id="process-filter" class="form-control" placeholder="프로세스 이름 필터">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="highlight-suspicious">
+                            <label class="form-check-label" for="highlight-suspicious">
+                                의심스러운 활동 강조
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-pie-chart"></i> 이벤트 분포
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="eventChart" width="300" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 프로세스 트리 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-diagram-3"></i> 프로세스 트리
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="process-tree" class="text-muted">
+                    프로세스 정보를 수집하는 중...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 설정 모달 -->
+<div class="modal fade" id="configModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-gear"></i> DRAKVUF 설정
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="drakvuf-config-form">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">도메인 이름</label>
+                                <input type="text" class="form-control" id="domain-name" value="windows10">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">출력 형식</label>
+                                <select class="form-select" id="output-format">
+                                    <option value="json">JSON</option>
+                                    <option value="kv">Key-Value</option>
+                                    <option value="csv">CSV</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">활성화할 플러그인</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="plugin-syscalls" checked>
+                                    <label class="form-check-label" for="plugin-syscalls">syscalls</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="plugin-filetracer">
+                                    <label class="form-check-label" for="plugin-filetracer">filetracer</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="plugin-procmon">
+                                    <label class="form-check-label" for="plugin-procmon">procmon</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="plugin-regmon">
+                                    <label class="form-check-label" for="plugin-regmon">regmon</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="plugin-socketmon">
+                                    <label class="form-check-label" for="plugin-socketmon">socketmon</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="plugin-apimon">
+                                    <label class="form-check-label" for="plugin-apimon">apimon</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">타임아웃 (초)</label>
+                                <input type="number" class="form-control" id="timeout" value="300">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">주입 타임아웃 (초)</label>
+                                <input type="number" class="form-control" id="injection-timeout" value="60">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="verbose-output">
+                        <label class="form-check-label" for="verbose-output">
+                            상세 출력 활성화
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" id="save-config-btn">설정 저장</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let drakvufRunning = false;
+    let outputPaused = false;
+    let eventCount = 0;
+    let eventsPerSecond = 0;
+    let lastEventTime = Date.now();
+    let eventChart;
+    
+    // 이벤트 통계
+    let eventStats = {
+        syscall: 0,
+        process: 0,
+        file: 0,
+        network: 0,
+        registry: 0,
+        other: 0
+    };
+    
+    // DOM 요소들
+    const drakvufOutput = document.getElementById('drakvuf-output');
+    const toggleBtn = document.getElementById('toggle-drakvuf-btn');
+    const pauseBtn = document.getElementById('pause-output-btn');
+    const clearBtn = document.getElementById('clear-output-btn');
+    const saveBtn = document.getElementById('save-output-btn');
+    const eventsCountEl = document.getElementById('events-count');
+    const eventsPerSecEl = document.getElementById('events-per-sec');
+    
+    // 차트 초기화
+    function initEventChart() {
+        const ctx = document.getElementById('eventChart').getContext('2d');
+        eventChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['시스템 콜', '프로세스', '파일', '네트워크', '레지스트리', '기타'],
+                datasets: [{
+                    data: [0, 0, 0, 0, 0, 0],
+                    backgroundColor: [
+                        '#FF6384',
+                        '#36A2EB',
+                        '#FFCE56',
+                        '#4BC0C0',
+                        '#9966FF',
+                        '#FF9F40'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: {
+                                size: 10
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // 출력 추가 함수
+    function appendOutput(message, type = 'info') {
+        if (outputPaused) return;
+        
+        const timestamp = new Date().toLocaleTimeString();
+        const colors = {
+            'info': 'text-light',
+            'success': 'text-success',
+            'warning': 'text-warning',
+            'error': 'text-danger',
+            'syscall': 'text-info',
+            'process': 'text-primary',
+            'file': 'text-warning',
+            'network': 'text-success',
+            'registry': 'text-secondary'
+        };
+        
+        const outputEntry = document.createElement('div');
+        outputEntry.className = colors[type] || 'text-light';
+        
+        // 필터 적용
+        const eventTypeFilter = document.getElementById('event-type-filter').value;
+        const processFilter = document.getElementById('process-filter').value.toLowerCase();
+        
+        if (eventTypeFilter && !message.toLowerCase().includes(eventTypeFilter)) {
+            return;
+        }
+        
+        if (processFilter && !message.toLowerCase().includes(processFilter)) {
+            return;
+        }
+        
+        // 의심스러운 활동 강조
+        const highlightSuspicious = document.getElementById('highlight-suspicious').checked;
+        if (highlightSuspicious && isSuspicious(message)) {
+            outputEntry.className += ' bg-danger';
+        }
+        
+        outputEntry.innerHTML = `<span class="text-muted">[${timestamp}]</span> ${message}`;
+        drakvufOutput.appendChild(outputEntry);
+        
+        // 자동 스크롤
+        drakvufOutput.scrollTop = drakvufOutput.scrollHeight;
+        
+        // 통계 업데이트
+        updateEventStats(message);
+        
+        // 출력이 너무 많아지면 오래된 것 제거
+        const maxLines = 1000;
+        const lines = drakvufOutput.children;
+        if (lines.length > maxLines) {
+            for (let i = 0; i < lines.length - maxLines; i++) {
+                lines[i].remove();
+            }
+        }
+    }
+    
+    // 의심스러운 활동 감지
+    function isSuspicious(message) {
+        const suspiciousPatterns = [
+            'CreateRemoteThread',
+            'WriteProcessMemory',
+            'VirtualAllocEx',
+            'SetWindowsHookEx',
+            'RegSetValue.*Run',
+            'cmd.exe.*powershell',
+            'rundll32.exe.*javascript'
+        ];
+        
+        return suspiciousPatterns.some(pattern => 
+            new RegExp(pattern, 'i').test(message)
+        );
+    }
+    
+    // 이벤트 통계 업데이트
+    function updateEventStats(message) {
+        eventCount++;
+        eventsCountEl.textContent = eventCount.toLocaleString();
+        
+        // 초당 이벤트 계산
+        const now = Date.now();
+        const timeDiff = (now - lastEventTime) / 1000;
+        if (timeDiff >= 1) {
+            eventsPerSecond = Math.round(eventCount / timeDiff);
+            eventsPerSecEl.textContent = eventsPerSecond;
+            lastEventTime = now;
+        }
+        
+        // 이벤트 타입별 통계
+        const msgLower = message.toLowerCase();
+        if (msgLower.includes('syscall')) {
+            eventStats.syscall++;
+        } else if (msgLower.includes('process')) {
+            eventStats.process++;
+        } else if (msgLower.includes('file')) {
+            eventStats.file++;
+        } else if (msgLower.includes('network') || msgLower.includes('socket')) {
+            eventStats.network++;
+        } else if (msgLower.includes('registry') || msgLower.includes('regkey')) {
+            eventStats.registry++;
+        } else {
+            eventStats.other++;
+        }
+        
+        // 차트 업데이트
+        if (eventChart) {
+            eventChart.data.datasets[0].data = [
+                eventStats.syscall,
+                eventStats.process,
+                eventStats.file,
+                eventStats.network,
+                eventStats.registry,
+                eventStats.other
+            ];
+            eventChart.update('none');
+        }
+    }
+    
+    // DRAKVUF 상태 업데이트
+    function updateDrakvufStatus(status) {
+        const statusEl = document.getElementById('drakvuf-status');
+        const pidEl = document.getElementById('drakvuf-pid');
+        const indicatorEl = document.getElementById('drakvuf-status-indicator');
+        
+        if (status.is_running) {
+            drakvufRunning = true;
+            statusEl.textContent = '실행 중';
+            pidEl.textContent = status.process_id || '-';
+            indicatorEl.className = 'status-indicator status-online';
+            toggleBtn.innerHTML = '<i class="bi bi-stop-fill"></i> 중지';
+            toggleBtn.className = 'btn btn-danger';
+            toggleBtn.disabled = false;
+        } else {
+            drakvufRunning = false;
+            statusEl.textContent = '중지됨';
+            pidEl.textContent = '-';
+            indicatorEl.className = 'status-indicator status-offline';
+            toggleBtn.innerHTML = '<i class="bi bi-play-fill"></i> 시작';
+            toggleBtn.className = 'btn btn-success';
+            toggleBtn.disabled = false;
+        }
+    }
+    
+    // 설정 수집 함수
+    function getConfiguration() {
+        const plugins = [];
+        const checkboxes = document.querySelectorAll('#drakvuf-config-form input[type="checkbox"]:checked');
+        checkboxes.forEach(cb => {
+            if (cb.id.startsWith('plugin-')) {
+                plugins.push(cb.id.replace('plugin-', ''));
+            }
+        });
+        
+        return {
+            domain: document.getElementById('domain-name').value,
+            output_format: document.getElementById('output-format').value,
+            plugins: plugins,
+            timeout: parseInt(document.getElementById('timeout').value),
+            injection_timeout: parseInt(document.getElementById('injection-timeout').value),
+            verbose: document.getElementById('verbose-output').checked
+        };
+    }
+    
+    // 이벤트 리스너들
+    toggleBtn.addEventListener('click', function() {
+        if (drakvufRunning) {
+            // DRAKVUF 중지
+            fetch('/api/drakvuf/stop', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    showAlert(data.message, 'success');
+                } else if (data.error) {
+                    showAlert(data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                showAlert('DRAKVUF 중지 실패: ' + error.message, 'danger');
+            });
+        } else {
+            // 설정 모달 표시
+            const configModal = new bootstrap.Modal(document.getElementById('configModal'));
+            configModal.show();
+        }
+    });
+    
+    document.getElementById('save-config-btn').addEventListener('click', function() {
+        const config = getConfiguration();
+        
+        fetch('/api/drakvuf/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                showAlert(data.message, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('configModal')).hide();
+                
+                // 통계 초기화
+                eventCount = 0;
+                eventsPerSecond = 0;
+                lastEventTime = Date.now();
+                eventStats = { syscall: 0, process: 0, file: 0, network: 0, registry: 0, other: 0 };
+                
+            } else if (data.error) {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            showAlert('DRAKVUF 시작 실패: ' + error.message, 'danger');
+        });
+    });
+    
+    pauseBtn.addEventListener('click', function() {
+        outputPaused = !outputPaused;
+        if (outputPaused) {
+            pauseBtn.innerHTML = '<i class="bi bi-play-fill"></i> 재개';
+            pauseBtn.className = 'btn btn-outline-success btn-sm';
+        } else {
+            pauseBtn.innerHTML = '<i class="bi bi-pause-fill"></i> 일시정지';
+            pauseBtn.className = 'btn btn-outline-warning btn-sm';
+        }
+    });
+    
+    clearBtn.addEventListener('click', function() {
+        drakvufOutput.innerHTML = '<div class="text-muted">출력이 지워졌습니다...</div>';
+        eventCount = 0;
+        eventsPerSecond = 0;
+        eventStats = { syscall: 0, process: 0, file: 0, network: 0, registry: 0, other: 0 };
+        eventsCountEl.textContent = '0';
+        eventsPerSecEl.textContent = '0';
+        if (eventChart) {
+            eventChart.data.datasets[0].data = [0, 0, 0, 0, 0, 0];
+            eventChart.update();
+        }
+    });
+    
+    saveBtn.addEventListener('click', function() {
+        const content = Array.from(drakvufOutput.children)
+            .map(el => el.textContent)
+            .join('\n');
+        
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `drakvuf_output_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+    
+    // Socket.IO 이벤트 핸들러
+    socket.on('drakvuf_output', function(data) {
+        appendOutput(data.data, 'info');
+    });
+    
+    socket.on('drakvuf_stopped', function(data) {
+        appendOutput(data.message, 'warning');
+        updateDrakvufStatus({ is_running: false });
+    });
+    
+    // 페이지 로드 시 초기화
+    document.addEventListener('DOMContentLoaded', function() {
+        initEventChart();
+        
+        // DRAKVUF 상태 확인
+        fetch('/api/drakvuf/status')
+        .then(response => response.json())
+        .then(data => {
+            updateDrakvufStatus(data);
+        })
+        .catch(error => {
+            console.error('DRAKVUF 상태 확인 실패:', error);
+        });
+        
+        // 주기적으로 상태 업데이트
+        setInterval(() => {
+            fetch('/api/drakvuf/status')
+            .then(response => response.json())
+            .then(data => {
+                updateDrakvufStatus(data);
+            })
+            .catch(error => {
+                console.error('DRAKVUF 상태 업데이트 실패:', error);
+            });
+        }, 5000);
+    });
+</script>
+{% endblock %}
