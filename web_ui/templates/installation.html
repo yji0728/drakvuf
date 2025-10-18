@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+
+{% block title %}DRAKVUF 설치{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="h2 mb-4">
+            <i class="bi bi-download"></i> DRAKVUF 설치 및 업데이트
+        </h1>
+    </div>
+</div>
+
+<!-- 설치 상태 카드 -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-info-circle"></i> 설치 상태
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>시스템 정보</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>OS:</strong> <span id="os-info">Ubuntu 24.04 LTS</span></li>
+                            <li><strong>커널:</strong> <span id="kernel-info">확인 중...</span></li>
+                            <li><strong>아키텍처:</strong> <span id="arch-info">확인 중...</span></li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>구성 요소 상태</h6>
+                        <ul class="list-unstyled">
+                            <li>
+                                <i class="bi bi-circle-fill text-secondary" id="drakvuf-status-icon"></i>
+                                DRAKVUF: <span id="drakvuf-status-text">확인 중...</span>
+                            </li>
+                            <li>
+                                <i class="bi bi-circle-fill text-secondary" id="xen-status-icon"></i>
+                                Xen 하이퍼바이저: <span id="xen-status-text">확인 중...</span>
+                            </li>
+                            <li>
+                                <i class="bi bi-circle-fill text-secondary" id="volatility-status-icon"></i>
+                                Volatility3: <span id="volatility-status-text">확인 중...</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-exclamation-triangle"></i> 주의사항
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning" role="alert">
+                    <small>
+                        <strong>설치 전 확인사항:</strong><br>
+                        • Intel VT-x 및 EPT 지원 CPU 필요<br>
+                        • 최소 4GB RAM, 10GB 디스크 공간<br>
+                        • 인터넷 연결 필요<br>
+                        • 설치 후 시스템 재부팅 필요
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 설치 제어 패널 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-play-circle"></i> 설치 제어
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="mb-3">
+                            <h6>설치 옵션</h6>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="" id="enable-logging" checked>
+                                <label class="form-check-label" for="enable-logging">
+                                    상세 로깅 활성화
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="" id="auto-cleanup">
+                                <label class="form-check-label" for="auto-cleanup">
+                                    설치 실패 시 자동 정리
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="" id="update-grub" checked>
+                                <label class="form-check-label" for="update-grub">
+                                    GRUB 부트로더 자동 업데이트
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-grid gap-2">
+                            <button id="start-installation-btn" class="btn btn-primary btn-lg" disabled>
+                                <i class="bi bi-download"></i> 설치 시작
+                            </button>
+                            <button id="check-requirements-btn" class="btn btn-outline-secondary">
+                                <i class="bi bi-check-circle"></i> 요구사항 확인
+                            </button>
+                            <button id="cleanup-system-btn" class="btn btn-outline-warning">
+                                <i class="bi bi-trash"></i> 시스템 정리
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 설치 진행 상황 -->
+<div class="row mb-4" id="installation-progress-section" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-arrow-clockwise" id="progress-icon"></i> 설치 진행 상황
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span id="current-step">준비 중...</span>
+                        <span id="progress-percentage">0%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar" role="progressbar" id="progress-bar" 
+                             style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <button id="abort-installation-btn" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-x-circle"></i> 설치 중단
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 설치 로그 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-terminal"></i> 설치 로그
+                </h5>
+                <div>
+                    <button id="clear-log-btn" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-trash"></i> 로그 지우기
+                    </button>
+                    <button id="auto-scroll-btn" class="btn btn-outline-primary btn-sm active" data-bs-toggle="button">
+                        <i class="bi bi-arrow-down"></i> 자동 스크롤
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div id="installation-log" class="bg-dark text-light p-3" 
+                     style="height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85em;">
+                    <div class="text-muted">설치 로그가 여기에 표시됩니다...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 에러 대응 모달 -->
+<div class="modal fade" id="errorResponseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle text-warning"></i> 설치 오류 대응
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger" role="alert">
+                    <strong>오류가 발생했습니다!</strong>
+                    <div id="error-details" class="mt-2"></div>
+                </div>
+                
+                <h6>대응 옵션:</h6>
+                <div class="list-group">
+                    <button type="button" class="list-group-item list-group-item-action" id="retry-option">
+                        <i class="bi bi-arrow-clockwise"></i> 자동 정리 후 재시도
+                        <small class="text-muted d-block">시스템을 정리하고 설치를 다시 시도합니다.</small>
+                    </button>
+                    <button type="button" class="list-group-item list-group-item-action" id="manual-cleanup-option">
+                        <i class="bi bi-book"></i> 수동 정리 가이드 보기
+                        <small class="text-muted d-block">단계별 수동 정리 방법을 확인합니다.</small>
+                    </button>
+                    <button type="button" class="list-group-item list-group-item-action" id="analyze-logs-option">
+                        <i class="bi bi-search"></i> 로그 분석 도구 실행
+                        <small class="text-muted d-block">상세한 오류 분석을 수행합니다.</small>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let installationInProgress = false;
+    let autoScroll = true;
+    
+    // DOM 요소들
+    const startInstallationBtn = document.getElementById('start-installation-btn');
+    const checkRequirementsBtn = document.getElementById('check-requirements-btn');
+    const cleanupSystemBtn = document.getElementById('cleanup-system-btn');
+    const abortInstallationBtn = document.getElementById('abort-installation-btn');
+    const clearLogBtn = document.getElementById('clear-log-btn');
+    const autoScrollBtn = document.getElementById('auto-scroll-btn');
+    const installationLog = document.getElementById('installation-log');
+    const progressSection = document.getElementById('installation-progress-section');
+    const progressBar = document.getElementById('progress-bar');
+    const progressPercentage = document.getElementById('progress-percentage');
+    const currentStep = document.getElementById('current-step');
+    const progressIcon = document.getElementById('progress-icon');
+    
+    // 로그 추가 함수
+    function appendLog(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        const colorClass = {
+            'info': 'text-light',
+            'success': 'text-success',
+            'warning': 'text-warning',
+            'error': 'text-danger'
+        }[type] || 'text-light';
+        
+        const logEntry = document.createElement('div');
+        logEntry.className = colorClass;
+        logEntry.innerHTML = `<span class="text-muted">[${timestamp}]</span> ${message}`;
+        
+        installationLog.appendChild(logEntry);
+        
+        // 자동 스크롤
+        if (autoScroll) {
+            installationLog.scrollTop = installationLog.scrollHeight;
+        }
+    }
+    
+    // 진행률 업데이트 함수
+    function updateProgress(step, percentage, message) {
+        currentStep.textContent = message || step;
+        progressPercentage.textContent = percentage + '%';
+        progressBar.style.width = percentage + '%';
+        progressBar.setAttribute('aria-valuenow', percentage);
+        
+        if (percentage === 100) {
+            progressIcon.className = 'bi bi-check-circle text-success';
+        } else {
+            progressIcon.className = 'bi bi-arrow-clockwise';
+        }
+    }
+    
+    // 설치 상태 업데이트
+    function updateInstallationStatus(status) {
+        if (status.is_installing) {
+            if (!installationInProgress) {
+                installationInProgress = true;
+                progressSection.style.display = 'block';
+                startInstallationBtn.disabled = true;
+                startInstallationBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> 설치 중...';
+            }
+            
+            updateProgress(status.current_step, status.progress, status.current_step);
+            
+            // 새로운 로그 메시지 추가
+            if (status.log_messages && status.log_messages.length > 0) {
+                const lastMessages = status.log_messages.slice(-5);  // 최근 5개 메시지만
+                lastMessages.forEach(message => {
+                    if (message.includes('ERROR') || message.includes('오류')) {
+                        appendLog(message, 'error');
+                    } else if (message.includes('WARN') || message.includes('경고')) {
+                        appendLog(message, 'warning');
+                    } else if (message.includes('완료') || message.includes('성공')) {
+                        appendLog(message, 'success');
+                    } else {
+                        appendLog(message, 'info');
+                    }
+                });
+            }
+        } else {
+            if (installationInProgress) {
+                installationInProgress = false;
+                startInstallationBtn.disabled = false;
+                startInstallationBtn.innerHTML = '<i class="bi bi-download"></i> 설치 시작';
+                
+                if (status.progress === 100) {
+                    appendLog('설치가 완료되었습니다!', 'success');
+                } else if (status.current_step && status.current_step.includes('실패')) {
+                    appendLog('설치가 실패했습니다.', 'error');
+                }
+            }
+        }
+    }
+    
+    // 시스템 상태 업데이트
+    function updateSystemStatus(status) {
+        // DRAKVUF 상태
+        const drakvufIcon = document.getElementById('drakvuf-status-icon');
+        const drakvufText = document.getElementById('drakvuf-status-text');
+        if (status.drakvuf_installed) {
+            drakvufIcon.className = 'bi bi-circle-fill text-success';
+            drakvufText.textContent = '설치됨';
+        } else {
+            drakvufIcon.className = 'bi bi-circle-fill text-danger';
+            drakvufText.textContent = '미설치';
+        }
+        
+        // Xen 상태
+        const xenIcon = document.getElementById('xen-status-icon');
+        const xenText = document.getElementById('xen-status-text');
+        if (status.xen_installed) {
+            xenIcon.className = 'bi bi-circle-fill text-success';
+            xenText.textContent = '설치됨';
+        } else {
+            xenIcon.className = 'bi bi-circle-fill text-danger';
+            xenText.textContent = '미설치';
+        }
+        
+        // 설치 버튼 활성화/비활성화
+        if (!installationInProgress) {
+            startInstallationBtn.disabled = false;
+        }
+    }
+    
+    // 이벤트 리스너들
+    startInstallationBtn.addEventListener('click', function() {
+        if (installationInProgress) return;
+        
+        fetch('/api/installation/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                enable_logging: document.getElementById('enable-logging').checked,
+                auto_cleanup: document.getElementById('auto-cleanup').checked,
+                update_grub: document.getElementById('update-grub').checked
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                appendLog(data.message, 'success');
+                showAlert(data.message, 'success');
+            } else if (data.error) {
+                appendLog(data.error, 'error');
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            appendLog('설치 시작 요청 실패: ' + error.message, 'error');
+            showAlert('설치 시작 실패: ' + error.message, 'danger');
+        });
+    });
+    
+    checkRequirementsBtn.addEventListener('click', function() {
+        appendLog('시스템 요구사항 확인 중...', 'info');
+        
+        fetch('/api/system/status')
+        .then(response => response.json())
+        .then(data => {
+            appendLog('시스템 정보:', 'info');
+            appendLog(`CPU 사용률: ${data.cpu_percent.toFixed(1)}%`, 'info');
+            appendLog(`메모리: ${(data.memory.used / 1024 / 1024 / 1024).toFixed(1)}GB / ${(data.memory.total / 1024 / 1024 / 1024).toFixed(1)}GB (${data.memory.percent.toFixed(1)}%)`, 'info');
+            appendLog(`디스크: ${(data.disk.used / 1024 / 1024 / 1024).toFixed(1)}GB / ${(data.disk.total / 1024 / 1024 / 1024).toFixed(1)}GB (${data.disk.percent.toFixed(1)}%)`, 'info');
+            appendLog(`가동 시간: ${data.uptime}`, 'info');
+            
+            if (data.memory.total < 4 * 1024 * 1024 * 1024) {
+                appendLog('경고: 메모리가 4GB 미만입니다.', 'warning');
+            }
+            if (data.disk.total - data.disk.used < 10 * 1024 * 1024 * 1024) {
+                appendLog('경고: 사용 가능한 디스크 공간이 10GB 미만입니다.', 'warning');
+            }
+            
+            appendLog('요구사항 확인 완료.', 'success');
+        })
+        .catch(error => {
+            appendLog('요구사항 확인 실패: ' + error.message, 'error');
+        });
+    });
+    
+    clearLogBtn.addEventListener('click', function() {
+        installationLog.innerHTML = '<div class="text-muted">로그가 지워졌습니다...</div>';
+    });
+    
+    autoScrollBtn.addEventListener('click', function() {
+        autoScroll = !autoScroll;
+        if (autoScroll) {
+            autoScrollBtn.classList.add('active');
+            installationLog.scrollTop = installationLog.scrollHeight;
+        } else {
+            autoScrollBtn.classList.remove('active');
+        }
+    });
+    
+    // Socket.IO 이벤트 핸들러
+    socket.on('installation_update', function(data) {
+        updateInstallationStatus(data);
+    });
+    
+    socket.on('system_status_update', function(data) {
+        updateSystemStatus(data);
+    });
+    
+    // 페이지 로드 시 초기 상태 확인
+    document.addEventListener('DOMContentLoaded', function() {
+        // 설치 상태 확인
+        fetch('/api/installation/status')
+        .then(response => response.json())
+        .then(data => {
+            updateInstallationStatus(data);
+        })
+        .catch(error => {
+            console.error('설치 상태 확인 실패:', error);
+        });
+        
+        // 시스템 상태 확인
+        fetch('/api/system/status')
+        .then(response => response.json())
+        .then(data => {
+            updateSystemStatus(data);
+        })
+        .catch(error => {
+            console.error('시스템 상태 확인 실패:', error);
+        });
+    });
+</script>
+{% endblock %}

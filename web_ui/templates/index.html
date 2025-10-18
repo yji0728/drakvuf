@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block title %}DRAKVUF 대시보드{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="h2 mb-4">
+            <i class="bi bi-speedometer2"></i> DRAKVUF 대시보드
+        </h1>
+    </div>
+</div>
+
+<!-- 시스템 상태 카드들 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 id="cpu-usage">--%</h4>
+                        <p class="mb-0">CPU 사용률</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-cpu fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 id="memory-usage">--%</h4>
+                        <p class="mb-0">메모리 사용률</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-memory fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 id="disk-usage">--%</h4>
+                        <p class="mb-0">디스크 사용률</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-hdd-stack fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 id="uptime">--:--</h4>
+                        <p class="mb-0">가동 시간</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-clock fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DRAKVUF 상태 및 제어 -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-shield-check"></i> DRAKVUF 상태
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <strong>설치 상태:</strong>
+                            <span id="drakvuf-installed" class="badge bg-secondary">확인 중...</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>Xen 하이퍼바이저:</strong>
+                            <span id="xen-installed" class="badge bg-secondary">확인 중...</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>분석 상태:</strong>
+                            <span id="drakvuf-running" class="badge bg-secondary">확인 중...</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-grid gap-2">
+                            <button id="start-analysis-btn" class="btn btn-success" disabled>
+                                <i class="bi bi-play-fill"></i> 분석 시작
+                            </button>
+                            <button id="stop-analysis-btn" class="btn btn-danger" disabled>
+                                <i class="bi bi-stop-fill"></i> 분석 중지
+                            </button>
+                            <a href="{{ url_for('configuration') }}" class="btn btn-outline-primary">
+                                <i class="bi bi-gear"></i> 설정
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-tools"></i> 빠른 작업
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('installation') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-download"></i> 설치/업데이트
+                    </a>
+                    <a href="{{ url_for('monitoring') }}" class="btn btn-outline-success">
+                        <i class="bi bi-activity"></i> 실시간 모니터링
+                    </a>
+                    <a href="{{ url_for('logs') }}" class="btn btn-outline-info">
+                        <i class="bi bi-file-text"></i> 로그 보기
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 시스템 리소스 차트 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-graph-up"></i> 시스템 리소스 모니터링
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="resourceChart" width="400" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 최근 활동 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-clock-history"></i> 최근 활동
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="recent-activities">
+                    <p class="text-muted">활동 로그를 불러오는 중...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 리소스 차트 설정
+    const ctx = document.getElementById('resourceChart').getContext('2d');
+    const resourceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'CPU (%)',
+                data: [],
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                tension: 0.4
+            }, {
+                label: '메모리 (%)',
+                data: [],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+
+    // 차트 데이터 업데이트 함수
+    function updateChart(cpuPercent, memoryPercent) {
+        const now = new Date().toLocaleTimeString();
+        
+        resourceChart.data.labels.push(now);
+        resourceChart.data.datasets[0].data.push(cpuPercent);
+        resourceChart.data.datasets[1].data.push(memoryPercent);
+        
+        // 최대 20개 데이터 포인트만 유지
+        if (resourceChart.data.labels.length > 20) {
+            resourceChart.data.labels.shift();
+            resourceChart.data.datasets[0].data.shift();
+            resourceChart.data.datasets[1].data.shift();
+        }
+        
+        resourceChart.update('none');
+    }
+
+    // 시스템 상태 업데이트
+    function updateSystemStatus(status) {
+        // CPU 사용률
+        document.getElementById('cpu-usage').textContent = status.cpu_percent.toFixed(1) + '%';
+        
+        // 메모리 사용률
+        const memoryPercent = status.memory.percent;
+        document.getElementById('memory-usage').textContent = memoryPercent.toFixed(1) + '%';
+        
+        // 디스크 사용률
+        document.getElementById('disk-usage').textContent = status.disk.percent.toFixed(1) + '%';
+        
+        // 가동 시간
+        document.getElementById('uptime').textContent = status.uptime;
+        
+        // DRAKVUF 설치 상태
+        const drakvufStatus = document.getElementById('drakvuf-installed');
+        if (status.drakvuf_installed) {
+            drakvufStatus.textContent = '설치됨';
+            drakvufStatus.className = 'badge bg-success';
+        } else {
+            drakvufStatus.textContent = '미설치';
+            drakvufStatus.className = 'badge bg-danger';
+        }
+        
+        // Xen 설치 상태
+        const xenStatus = document.getElementById('xen-installed');
+        if (status.xen_installed) {
+            xenStatus.textContent = '설치됨';
+            xenStatus.className = 'badge bg-success';
+        } else {
+            xenStatus.textContent = '미설치';
+            xenStatus.className = 'badge bg-danger';
+        }
+        
+        // DRAKVUF 실행 상태
+        const runningStatus = document.getElementById('drakvuf-running');
+        const startBtn = document.getElementById('start-analysis-btn');
+        const stopBtn = document.getElementById('stop-analysis-btn');
+        
+        if (status.drakvuf_status.is_running) {
+            runningStatus.textContent = '실행 중';
+            runningStatus.className = 'badge bg-success';
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+        } else {
+            runningStatus.textContent = '중지됨';
+            runningStatus.className = 'badge bg-secondary';
+            startBtn.disabled = !status.drakvuf_installed;
+            stopBtn.disabled = true;
+        }
+        
+        // 차트 업데이트
+        updateChart(status.cpu_percent, memoryPercent);
+    }
+
+    // Socket.IO 이벤트 핸들러
+    socket.on('system_status_update', function(data) {
+        updateSystemStatus(data);
+    });
+
+    // DRAKVUF 제어 버튼 이벤트
+    document.getElementById('start-analysis-btn').addEventListener('click', function() {
+        fetch('/api/drakvuf/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                domain: 'default',  // 기본 설정
+                output_format: 'json'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                showAlert(data.message, 'success');
+            } else if (data.error) {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            showAlert('분석 시작 요청 실패: ' + error.message, 'danger');
+        });
+    });
+
+    document.getElementById('stop-analysis-btn').addEventListener('click', function() {
+        fetch('/api/drakvuf/stop', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                showAlert(data.message, 'success');
+            } else if (data.error) {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            showAlert('분석 중지 요청 실패: ' + error.message, 'danger');
+        });
+    });
+
+    // 페이지 로드 시 초기 상태 요청
+    document.addEventListener('DOMContentLoaded', function() {
+        // 즉시 상태 요청
+        fetch('/api/system/status')
+        .then(response => response.json())
+        .then(data => {
+            updateSystemStatus(data);
+        })
+        .catch(error => {
+            console.error('시스템 상태 로드 실패:', error);
+        });
+        
+        // 5초마다 상태 업데이트
+        setInterval(() => {
+            fetch('/api/system/status')
+            .then(response => response.json())
+            .then(data => {
+                updateSystemStatus(data);
+            })
+            .catch(error => {
+                console.error('시스템 상태 업데이트 실패:', error);
+            });
+        }, 5000);
+    });
+</script>
+{% endblock %}
